@@ -1,0 +1,26 @@
+<resources>
+    <string name="app_name">Name Game</string>
+    <string name="string_question">Who is</string>
+    <string name="cdFace">A face</string>
+    <string name="string_score">Score:</string>
+    <string name="string_high_score">Hard mode high score:</string>
+    <string name="string_total_correct">Total correct:</string>
+    <string name="string_total_incorrect">Total incorrect:</string>
+    <string name="string_statistics_title">Statistics</string>
+    <string name="string_default_stats_value">0</string>
+    <string name="string_done">DONE</string>
+    <string name="string_new_high_score">New high score!</string>
+    <string name="string_error_occurred_loading">An error occurred while loading.</string>
+    <string name="key_hard_mode">hard</string>
+    <string name="key_normal_mode">normal</string>
+    <!-- Menu strings -->
+    <string name="menu_item_restart">Restart game</string>
+    <string name="menu_item_play_normal">Play normal mode</string>
+    <string name="menu_item_play_hard">Play hard mode</string>
+    <string name="menu_item_statistics">Statistics</string>
+
+    <!-- Shared Preference Keys -->
+    <string name="pref_key_correct">pref_key_successes</string>
+    <string name="pref_key_incorrect">pref_key_incorrect</string>
+    <string name="pref_key_high_score">pref_key_high_score</string>
+</resources>

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/text_view_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="@dimen/name_game_title_text_margin"
+        android:layout_marginRight="@dimen/name_game_title_text_margin"
+        android:gravity="center_horizontal"
+        android:textColor="@color/darkGray"
+        android:textSize="22sp"
+        android:layout_marginTop="10dp"/>
+
+    <TextView
+        android:id="@+id/text_view_score"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:textColor="@color/darkGray"
+        android:textSize="22sp"
+        android:visibility="gone"/>
+
+    <RelativeLayout
+        android:id="@+id/loading_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:visibility="gone">
+
+        <ProgressBar
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:indeterminate="true"
+            />
+
+    </RelativeLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="10dp">
+
+        <LinearLayout
+            android:id="@+id/face_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal">
+
+                <include layout="@layout/name_game_image_cell"/>
+
+                <include layout="@layout/name_game_image_cell"/>
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal">
+
+                <include layout="@layout/name_game_image_cell"/>
+
+                <include layout="@layout/name_game_image_cell"/>
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal">
+
+                <include layout="@layout/name_game_image_cell"/>
+
+                <include layout="@layout/name_game_image_cell"/>
+
+            </LinearLayout>
+
+
+        </LinearLayout>
+
+    </ScrollView>
+</LinearLayout>

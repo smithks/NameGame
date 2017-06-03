@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              >
+
+    <TextView
+        android:id="@+id/stats_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/string_statistics_title"
+        android:textSize="25sp"
+        android:textColor="@color/offWhite"
+        android:padding="10dp"
+        android:layout_marginBottom="10dp"
+        android:background="@color/colorPrimary"/>
+
+    <LinearLayout
+        android:layout_marginLeft="10dp"
+        android:layout_marginStart="10dp"
+        android:id="@+id/stats_titles_layout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_below="@id/stats_title">
+
+        <TextView
+            style="@style/stats_title_text_style"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/string_total_correct"/>
+
+        <TextView
+            style="@style/stats_title_text_style"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/string_total_incorrect"/>
+
+        <TextView
+            style="@style/stats_title_text_style"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/string_high_score"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:paddingLeft="10dp"
+        android:paddingRight="10dp"
+        android:id="@+id/stats_values_layout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_toRightOf="@id/stats_titles_layout"
+        android:layout_toEndOf="@id/stats_titles_layout"
+        android:layout_alignTop="@id/stats_titles_layout">
+
+        <TextView
+            android:id="@+id/text_view_total_correct"
+            style="@style/stats_title_text_style"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/string_default_stats_value"/>
+
+        <TextView
+            android:id="@+id/text_view_total_incorrect"
+            style="@style/stats_title_text_style"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/string_default_stats_value"
+            />
+
+        <TextView
+            android:id="@+id/text_view_high_score"
+            style="@style/stats_title_text_style"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/string_default_stats_value"/>
+
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/button_stats_done"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        style="@style/Widget.AppCompat.Button.Borderless"
+        android:textColor="@color/colorPrimaryDark"
+        android:text="@string/string_done"
+        android:layout_alignRight="@id/stats_values_layout"
+        android:layout_alignEnd="@id/stats_values_layout"
+        android:layout_below="@id/stats_values_layout"
+        />
+
+</RelativeLayout>

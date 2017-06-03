@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+      xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/menu_action_restart"
+        android:title="@string/menu_item_restart"
+        app:showAsAction="never"
+        />
+
+    <item
+        android:id="@+id/menu_action_play_normal"
+        android:title="@string/menu_item_play_normal"
+        app:showAsAction="never"
+        />
+
+    <item
+        android:id="@+id/menu_action_play_hard"
+        android:title="@string/menu_item_play_hard"
+        app:showAsAction="never"/>
+
+    <item
+        android:id="@+id/menu_action_stats"
+        android:title="@string/menu_item_statistics"
+        app:showAsAction="never"/>
+
+</menu>
