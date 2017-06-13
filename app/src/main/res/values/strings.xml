@@ -9,6 +9,7 @@
     <string name="string_statistics_title">Statistics</string>
     <string name="string_default_stats_value">0</string>
     <string name="string_done">DONE</string>
+    <string name="string_clear_all">CLEAR ALL</string>
     <string name="string_new_high_score">New high score!</string>
     <string name="string_error_occurred_loading">An error occurred while loading.</string>
     <string name="key_hard_mode">hard</string>

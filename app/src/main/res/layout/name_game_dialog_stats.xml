@@ -79,6 +79,18 @@
     </LinearLayout>
 
     <Button
+        android:id="@+id/button_clear_all"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        style="@style/Widget.AppCompat.Button.Borderless"
+        android:textColor="@color/colorPrimaryDark"
+        android:text="@string/string_clear_all"
+        android:layout_below="@id/stats_values_layout"
+        android:layout_alignStart="@id/stats_titles_layout"
+        android:layout_alignLeft="@id/stats_titles_layout"
+        />
+
+    <Button
         android:id="@+id/button_stats_done"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

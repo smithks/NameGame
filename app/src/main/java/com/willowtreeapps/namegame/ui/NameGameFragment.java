@@ -6,13 +6,14 @@ import android.animation.ValueAnimator;
 import android.arch.lifecycle.LifecycleFragment;
 import android.arch.lifecycle.Observer;
 import android.arch.lifecycle.ViewModelProviders;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
-import android.preference.PreferenceManager;
-import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.DialogFragment;
+import android.support.v4.content.ContextCompat;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -26,6 +27,7 @@ import android.widget.Toast;
 
 import com.squareup.picasso.Picasso;
 import com.willowtreeapps.namegame.R;
+import com.willowtreeapps.namegame.core.AnimationData;
 import com.willowtreeapps.namegame.core.GameData;
 import com.willowtreeapps.namegame.core.NameGameApplication;
 import com.willowtreeapps.namegame.core.NameGameViewModel;
@@ -39,9 +41,9 @@ import java.util.List;
 import javax.inject.Inject;
 
 /**
- * The name game is hosted within this fragment. Uses callbacks from the ProfilesRepository.Listener
- * interface to receive person information from a ProfilesRepository object which grabs network data
- * using Retrofit.
+ * The name game is hosted within this fragment. A ViewModel is used to observe live data objects
+ * that reflect the current state of the Name Game. When these objects change, we modify the fragment's
+ * interface to reflect the new state.
  * @author Keegan Smith
  */
 public class NameGameFragment extends LifecycleFragment {
@@ -51,15 +53,15 @@ public class NameGameFragment extends LifecycleFragment {
     @Inject
     Picasso picasso;
 
-    private Menu menu;
     private ViewGroup portraitLayout;
     private RelativeLayout loadingLayout;
-    private TextView textViewTitle;
+    private TextView textViewQuestion;
     private TextView textViewScore;
     private List<ImageView> portraitImageList = new ArrayList<>(6);
     private List<TextView> portraitTextList = new ArrayList<>(6); //A list for the portrait names
 
     private NameGameViewModel viewModel;
+    private String currentMode; //Used only to show the correct menu option depending on current game mode
 
     /**
      * Sets this class as an injection target to populate injected fields.
@@ -67,36 +69,52 @@ public class NameGameFragment extends LifecycleFragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        NameGameApplication.get(getActivity()).component().inject(this);
-        viewModel = ViewModelProviders.of(this).get(NameGameViewModel.class);
-        viewModel.initialize();
-        viewModel.getGameData().observe(this, new Observer<GameData>() {
-            @Override
-            public void onChanged(@Nullable GameData gameData) {
-                refreshGame(gameData);
-            }
-        });
         setHasOptionsMenu(true);
+        NameGameApplication.get(getActivity()).component().inject(this);
     }
 
     /**
-     * Inflates this fragment's layout.
+     * Inflates this fragment's layout and initializes the viewmodel.
      */
     @Nullable
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.name_game_fragment, container, false);
+        View rootView = inflater.inflate(R.layout.name_game_fragment, container, false);
+        viewModel = ViewModelProviders.of(this).get(NameGameViewModel.class);
+        viewModel.initialize();
+        //Observe the GameData liveData, the meat of the game state
+        viewModel.getGameLiveData().observe(this, new Observer<GameData>() {
+            @Override
+            public void onChanged(@Nullable GameData gameData) {
+                onGameDataChanged(gameData);
+            }
+        });
+        //Observe the animation LiveData, alerts views in this fragment when an animation needs to play
+        viewModel.getAnimationLiveData().observe(this, new Observer<AnimationData>() {
+            @Override
+            public void onChanged(@Nullable AnimationData animationData) {
+                animateSelection(animationData);
+            }
+        });
+        //Observe the toast LiveData, alerts this fragment when a toast needs to be displayed to the user.
+        viewModel.getToastLiveData().observe(this, new Observer<String>() {
+            @Override
+            public void onChanged(@Nullable String message) {
+                displayToast(message);
+            }
+        });
+        return rootView;
+
     }
 
     /**
-     * Assigns all member level views and initializes the imageViews containing headshots. Restores
-     * from saved state if one exists, otherwise initiates a new game.
-     * @param view the parent view of this fragment
+     * Assigns all member level views and initializes the imageViews containing headshots.
+     * @param view               the parent view of this fragment
      * @param savedInstanceState bundle of saved information if this fragment is being recreated
      */
     @Override
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
-        textViewTitle = (TextView) view.findViewById(R.id.text_view_title);
+        textViewQuestion = (TextView) view.findViewById(R.id.text_view_title);
         textViewScore = (TextView) view.findViewById(R.id.text_view_score);
         portraitLayout = (ViewGroup) view.findViewById(R.id.face_container);
         loadingLayout = (RelativeLayout) view.findViewById(R.id.loading_layout);
@@ -112,8 +130,8 @@ public class NameGameFragment extends LifecycleFragment {
                 portraitCell.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        //viewModel.onPersonSelected((Person)view.getTag());
-                        onPersonSelected(view);
+                        ((ViewGroup) view).getChildAt(1).setVisibility(View.VISIBLE); //Display this person's name
+                        viewModel.onPersonSelected(((ViewGroup) view).getChildAt(0));
                     }
                 });
                 portraitImageList.add(face);
@@ -121,43 +139,38 @@ public class NameGameFragment extends LifecycleFragment {
             }
         }
         setImageViewSize();
-
-        restoreOrInitiateGame(savedInstanceState);
+        showLayout(loadingLayout);
     }
-
-//    /**
-//     * Saves the member objects to be restored if this fragment is destroyed due to system constraint.
-//     * @param outState bundle of saved information to restore
-//     */
-//    @Override
-//    public void onSaveInstanceState(Bundle outState) {
-//        outState.putInt(KEY_SCORE, currentScore);
-//        outState.putString(KEY_MODE, currentMode);
-//        outState.putParcelable(KEY_GOAL, currentGoal);
-//        outState.putParcelable(KEY_PROFILES, profiles);
-//        outState.putParcelableArrayList(KEY_PEOPLE, new ArrayList<Parcelable>(currentPeople));
-//        super.onSaveInstanceState(outState);
-//    }
 
     /**
      * Inflates the menu from resources and displays only the options we want.
-     * @param menu the parent menu
+     * @param menu     the parent menu
      * @param inflater used to inflate the menu
      */
     @Override
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
         inflater.inflate(R.menu.name_game_menu, menu);
-        this.menu = menu;
-        //Display either play normal or play hard menu option
-        //if (currentMode == null || currentMode.equals(MODE_NORMAL)) {
-        //    showMenuItem(R.id.menu_action_play_hard);
-        //} else {
-        //    showMenuItem(R.id.menu_action_play_normal);
-       // }
     }
 
     /**
-     * Handles the different available options from the menu.
+     * Called when the user opens the menu. Only show either play hard or play normal depending on
+     * the current mode.
+     * @param menu the menu in this fragment
+     */
+    @Override
+    public void onPrepareOptionsMenu(Menu menu) {
+        super.onPrepareOptionsMenu(menu);
+        if (currentMode != null){
+            if (currentMode.equals(getResources().getString(R.string.key_normal_mode))){
+                showMenuItem(menu, R.id.menu_action_play_hard);
+            }else {
+                showMenuItem(menu, R.id.menu_action_play_normal);
+            }
+        }
+    }
+
+    /**
+     * Handles the different available options in the menu.
      * @param item the menu item that was pressed
      * @return true if the item was handled
      */
@@ -165,19 +178,13 @@ public class NameGameFragment extends LifecycleFragment {
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.menu_action_restart: //Restart the current game
-                //currentScore = 0;
-                //refreshGame(currentMode);
+                viewModel.restartGame();
                 return true;
             case R.id.menu_action_play_normal: //Switch to normal mode
-                //currentMode = MODE_NORMAL;
-                //refreshGame(currentMode);
-                showMenuItem(R.id.menu_action_play_hard);
+                viewModel.changeMode(getResources().getString(R.string.key_normal_mode));
                 return true;
             case R.id.menu_action_play_hard: //Switch to hard mode
-                //currentMode = MODE_HARD;
-                //currentScore = 0;
-                //refreshGame(currentMode);
-                showMenuItem(R.id.menu_action_play_normal);
+                viewModel.changeMode(getResources().getString(R.string.key_hard_mode));
                 return true;
             case R.id.menu_action_stats: //Display the stats dialog
                 openStatsDialog();
@@ -192,11 +199,11 @@ public class NameGameFragment extends LifecycleFragment {
      * play normal and play hard menu options are not both visible.
      * @param id id of the menu item to show
      */
-    private void showMenuItem(int id) {
-        menu.findItem(R.id.menu_action_play_normal).setVisible(false);
-        menu.findItem(R.id.menu_action_play_hard).setVisible(false);
+    private void showMenuItem(Menu menu, int id) {
+            menu.findItem(R.id.menu_action_play_normal).setVisible(false);
+            menu.findItem(R.id.menu_action_play_hard).setVisible(false);
 
-        menu.findItem(id).setVisible(true);
+            menu.findItem(id).setVisible(true);
     }
 
     /**
@@ -204,7 +211,7 @@ public class NameGameFragment extends LifecycleFragment {
      * hiding the loading layout or portrait layout.
      * @param view the view to display.
      */
-    private void showLayout(View view){
+    private void showLayout(View view) {
         portraitLayout.setVisibility(View.GONE);
         loadingLayout.setVisibility(View.GONE);
 
@@ -215,36 +222,50 @@ public class NameGameFragment extends LifecycleFragment {
      * Opens an instance of a StatsDialogFragment that displays the users
      * statistics.
      */
-    private void openStatsDialog(){
+    private void openStatsDialog() {
         DialogFragment dialogFragment = new StatsDialogFragment();
-        dialogFragment.show(getFragmentManager(),STATS_TAG);
+        dialogFragment.show(getFragmentManager(), STATS_TAG);
     }
 
     /**
-     * Restores the previous state of the game if an instance of savedInstanceState is available,
-     * otherwise we request data from the ProfilesRepository to begin a new game.
-     * @param savedInstanceState saved bundle of state information
+     * Called when the observed GameData object changes. We use
+     * this new gamedata object to set the properties of a new
+     * game. The GameData observable can be changed by the user
+     * tapping on a correct portrait (or incorrect portrait if
+     * in hard mode), switching the game mode, or restarting the
+     * current game.
+     *
+     * This method is also called if a gameData
+     * object exists when we begin observing it, this is the case
+     * when restoring state after being destroyed by a system constraint.
+     * @param gameData the new state of the game
      */
-    private void restoreOrInitiateGame(Bundle savedInstanceState){
-        if (savedInstanceState != null) {
-            //currentPeople = savedInstanceState.getParcelableArrayList(KEY_PEOPLE);
-            //currentGoal = savedInstanceState.getParcelable(KEY_GOAL);
-            //currentMode = savedInstanceState.getString(KEY_MODE);
-            //currentScore = savedInstanceState.getInt(KEY_SCORE);
-            //profiles = savedInstanceState.getParcelable(KEY_PROFILES);
-            //setGameProperties(currentMode,currentGoal,currentPeople); //Continue the same game
-        } else { //If not restoring, game is setup by callback
-            //currentMode = MODE_NORMAL;
-            //currentScore = 0;
-            //repository.register(this);
+    private void onGameDataChanged(final GameData gameData) {
+        if (gameData.getCurrentScore() != 0) { //Pause before starting the new round to let the select animation play
+            setPortraitsEnabled(false);
+            Handler handler = new Handler(); //Wait one second before starting the new round
+            handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (getActivity() != null) { //Make sure we are still attached to activity after time elapses
+                        setGameProperties(gameData);
+                    }
+                }
+            }, 1000);
+        }else { //On new game immediately set properties
+            setGameProperties(gameData);
         }
     }
 
-    private void refreshGame(GameData gameData){
+    /**
+     * Uses the observed gameData object to set the properties of this game.
+     * @param gameData contains information about the current game
+     */
+    private void setGameProperties(final GameData gameData) {
+        setPortraitsEnabled(true);
         showLayout(loadingLayout);
-        //setGameProperties(gameData.getCurrentMode(),gameData.getGoal(),gameData.getChoices());
-        setDisplayScore(gameData.getCurrentMode(),gameData.getUserScoreString());
-        setQuestion(gameData.getGoalQuestionString());
+        setDisplayScore(gameData.getCurrentMode(), gameData.getCurrentScore());
+        setQuestion(gameData.getGoalNameString());
         setImages(gameData.getChoices());
         showLayout(portraitLayout);
     }
@@ -253,21 +274,34 @@ public class NameGameFragment extends LifecycleFragment {
      * Displays and updates the score if we are in hard mode.
      * @param gameMode current game mode
      */
-    private void setDisplayScore(String gameMode, String score){
+    private void setDisplayScore(String gameMode, int currentScore) {
         if (gameMode.equals(getResources().getString(R.string.key_normal_mode))) { //Hide score if not hard mode
             textViewScore.setVisibility(View.GONE);
+            currentMode = getResources().getString(R.string.key_normal_mode);
         } else {
             textViewScore.setVisibility(View.VISIBLE);
-            textViewScore.setText(score);
+            String score = getResources().getString(R.string.string_score);
+            score = score + " " + String.valueOf(currentScore);
+            int scoreLength = score.length();
+            SpannableStringBuilder builder = new SpannableStringBuilder(score);
+            builder.setSpan(new ForegroundColorSpan(ContextCompat.getColor(getActivity(), R.color.colorAccent)), scoreLength, builder.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            textViewScore.setText(builder);
+            currentMode = getResources().getString(R.string.key_hard_mode);
         }
     }
 
     /**
-     * Grabs the name from the given Person object and uses it to update the question.
-     * @param question the person to fetch name information from.
+     * Updates the question text field with the name of the new person goal.
+     * @param goalName the person to fetch name information from.
      */
-    private void setQuestion(String question){
-        textViewTitle.setText(question);
+    private void setQuestion(String goalName) {
+        String question = getResources().getString(R.string.string_question);
+        int startIndex = question.length();
+        question = question + " " + goalName;
+        SpannableStringBuilder builder = new SpannableStringBuilder(question);
+        builder.setSpan(new ForegroundColorSpan(ContextCompat.getColor(getActivity(), R.color.colorAccent)), startIndex, builder.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        builder.append("?");
+        textViewQuestion.setText(builder);
     }
 
     /**
@@ -299,95 +333,15 @@ public class NameGameFragment extends LifecycleFragment {
     }
 
     /**
-     * Sets the size of each image view to make sure all imageviews are uniform size.
+     * Sets the size of each image view to make sure all imageviews are of uniform size.
      */
-    private void setImageViewSize(){
+    private void setImageViewSize() {
         int imageSize = (int) Ui.convertDpToPixel(100, getContext());
-        for (ImageView view: portraitImageList){
+        for (ImageView view : portraitImageList) {
             ViewGroup.LayoutParams params = view.getLayoutParams();
             params.height = imageSize;
             params.width = imageSize;
             view.setLayoutParams(params);
-        }
-    }
-
-    /**
-     * Called when a portrait is clicked. Compares the associated person object with
-     * the goal and progress the game as appropriate.
-     * @param view The view that was selected, the associated person is stored in the tag
-     */
-    private void onPersonSelected(@NonNull View view) {
-        ImageView portrait = (ImageView) ((ViewGroup) view).getChildAt(0);
-        TextView portraitName = (TextView) ((ViewGroup) view).getChildAt(1);
-        Person person = (Person) portrait.getTag();
-
-        portraitName.setVisibility(View.VISIBLE); //Display this person's name
-
-        String totalKey;
-        int color;
-
-//        if (person.equals(currentGoal)) { //Correct portrait selected
-//            color = ContextCompat.getColor(getContext(), R.color.alphaGreen);
-//            totalKey = getResources().getString(R.string.pref_key_correct);
-//            if (currentMode.equals(MODE_HARD)) {
-//                currentScore++;
-//            }
-//            pauseAndRefresh();
-//        } else { //Incorret portrait selected
-//            color = ContextCompat.getColor(getContext(), R.color.alphaRed);
-//            totalKey = getResources().getString(R.string.pref_key_incorrect);
-//            if (currentMode.equals(MODE_HARD)) {
-//                compareHighScore(currentScore); //Update highscore if needed
-//                currentScore = 0;
-//                pauseAndRefresh();
-//            }
-//        }
-
-        //incrementTotals(totalKey); //Update statistics
-        //Animate the questionTextView and portrait that was selected
-        //animateCorrectOrIncorrect(portrait,"colorFilter",color);
-        //animateCorrectOrIncorrect(textViewTitle,"backgroundColor",color);
-        viewModel.setNewRound();
-    }
-
-    /**
-     * Pause for a second before restarting the game so user can see correct portrait and
-     * corresponding name.
-     */
-    private void pauseAndRefresh() {
-        setPortraitsEnabled(false);
-        Handler handler = new Handler(); //Wait one second before starting the new round
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                if (getActivity() != null) { //Make sure we are still attached to activity after time elapses
-                    setPortraitsEnabled(true);
-                    viewModel.setNewRound();
-                }
-            }
-        }, 1000);
-    }
-
-    /**
-     * Called when a portrait is pressed, updates the count of correct or incorrect guesses.
-     * @param key the preference to update
-     */
-    private void incrementTotals(String key){
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getContext());
-        int total = preferences.getInt(key,0)+1;
-        preferences.edit().putInt(key,total).apply();
-    }
-
-    /**
-     * Compares the user's score with the saved highscore. Alerts user and stores new high score.
-     * @param newScore the score from the last game
-     */
-    private void compareHighScore(int newScore){
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getContext());
-        int oldScore = preferences.getInt(getResources().getString(R.string.pref_key_high_score),0);
-        if (newScore > oldScore){
-            Toast.makeText(getContext(),getResources().getString(R.string.string_new_high_score),Toast.LENGTH_SHORT).show();
-            preferences.edit().putInt(getResources().getString(R.string.pref_key_high_score),newScore).apply();
         }
     }
 
@@ -407,13 +361,37 @@ public class NameGameFragment extends LifecycleFragment {
     }
 
     /**
-     * Animates the given view to indicate if the user's selection was correct or incorrect.
-     * @param view the view to animate
-     * @param propertyName the property of the view to modify
-     * @param toColor the color to animate with
+     * Called when the animationData observable updates. Indicated the user made a selection
+     * and we need to animate whether that selection was correct or incorrect.
+     * @param animationData describes the selected view and whether the selection was correct
      */
-    private void animateCorrectOrIncorrect(View view, String propertyName, int toColor){
-        ValueAnimator valueAnimator = ObjectAnimator.ofInt(view,propertyName,toColor);
+    private void animateSelection(AnimationData animationData) {
+        int color;
+        if (animationData.isSelectionCorrect()) {
+            color = ContextCompat.getColor(getContext(), R.color.alphaGreen);
+        } else {
+            color = ContextCompat.getColor(getContext(), R.color.alphaRed);
+        }
+        animateCorrectOrIncorrect(animationData.getSelectedView(), "colorFilter", color);
+        animateCorrectOrIncorrect(textViewQuestion, "backgroundColor", color);
+    }
+
+    /**
+     * Displays a toast to the user with the given string as the message.
+     * @param message the message to display in the toast
+     */
+    private void displayToast(String message) {
+        Toast.makeText(getActivity(), message, Toast.LENGTH_SHORT).show();
+    }
+
+    /**
+     * Animates the given view to indicate if the user's selection was correct or incorrect.
+     * @param view         the view to animate
+     * @param propertyName the property of the view to modify
+     * @param toColor      the color to animate with
+     */
+    private void animateCorrectOrIncorrect(View view, String propertyName, int toColor) {
+        ValueAnimator valueAnimator = ObjectAnimator.ofInt(view, propertyName, toColor);
         valueAnimator.setRepeatCount(1);
         valueAnimator.setEvaluator(new ArgbEvaluator());
         valueAnimator.setDuration(500);
